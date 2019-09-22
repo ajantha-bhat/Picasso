@@ -37,6 +37,7 @@ import iisc.dsl.picasso.server.PicassoException;
 import iisc.dsl.picasso.server.db.Database;
 import iisc.dsl.picasso.server.db.mysql.MysqlDatabase;
 import iisc.dsl.picasso.server.db.postgres.PostgresDatabase;
+import iisc.dsl.picasso.server.db.presto.PrestoDatabase;
 import iisc.dsl.picasso.server.db.sybase.SybaseDatabase;
 import iisc.dsl.picasso.server.db.db2.DB2Database;
 import iisc.dsl.picasso.server.db.informix.InformixDatabase;
@@ -398,7 +399,7 @@ public class PicassoParser {
 	}
 	private void getRelationNameFromDatabase(Database db,String attrib,Vector tables,Vector schemas) throws PicassoException
 	{
-		if(!(db instanceof PostgresDatabase || db instanceof SybaseDatabase || db instanceof InformixDatabase  ))
+		if(!(db instanceof PostgresDatabase || db instanceof SybaseDatabase || db instanceof InformixDatabase || db instanceof PrestoDatabase ))
 				attrib = attrib.toUpperCase();
 		try{
 			Statement stmt = db.createStatement();

@@ -30,6 +30,8 @@
 
 package iisc.dsl.picasso.server.db;
 
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.text.DecimalFormat;
 import java.util.ListIterator;
 import java.util.Vector;
@@ -41,6 +43,7 @@ import iisc.dsl.picasso.server.plan.Plan;
 import iisc.dsl.picasso.common.PicassoConstants;
 import iisc.dsl.picasso.server.db.mysql.MysqlDatabase;
 import iisc.dsl.picasso.server.db.mysql.MysqlHistogram;
+import iisc.dsl.picasso.server.db.presto.PrestoDatabase;
 
 abstract public class Histogram {
 	abstract public String getConstant(double sel);
@@ -180,7 +183,7 @@ abstract public class Histogram {
 			if(cardinality>0){
 				db.removeFromPlanTable(3000000);
 				Plan plan;
-				if (db instanceof MysqlDatabase){
+				if (db instanceof MysqlDatabase) {
 					if(!(/*getDatatype(dType).equals("string") ||
 					*/getDatatype(dType).equals("date") )) {
 						plan = db.getPlan("select count(*) from "+tabName+" where "+attribName+" <= "+constants[i],3000000);
@@ -188,8 +191,13 @@ abstract public class Histogram {
 					else {
 					plan = db.getPlan("select count(*) from "+tabName+" where "+attribName+" <= '"+constants[i]+"'",3000000);
 					}
-				}
-				else
+				} else if (db instanceof PrestoDatabase) {
+					// TODO: some operators which has 3 output, need to take last one during planning.
+					Statement stmt = db.createStatement();
+					ResultSet rs = stmt.executeQuery("select count(*) from "+tabName+" where "+attribName+" <= "+constants[i]+"");
+					rs.next();
+					return ((double)(Integer.parseInt(rs.getString(1)))/cardinality);
+				} else
 					if(!(/*getDatatype(dType).equals("string") || */getDatatype(dType).equals("date") ))
 					{
 						plan = db.getPlan("select * from "+tabName+" where "+attribName+" <= "+constants[i],3000000);

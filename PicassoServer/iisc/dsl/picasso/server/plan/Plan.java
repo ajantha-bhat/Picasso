@@ -76,7 +76,10 @@ public class Plan implements Serializable {
 	 */
 	public double getSelectivity(String tabName,double card, double dpsel, double osel)
 	{
-		// We assume same relation will not be used more than 10 times in the given query 
+		/*if (true) {
+			return -1;
+		}*/
+		// We assume same relation will not be used more than 10 times in the given query
 		double tmp[] = new double[10];
 		double optsel=-1;
 		int i=0; int count = 0;
@@ -93,9 +96,15 @@ public class Plan implements Serializable {
 				node = getNodeById(node.getParentId());
 				// card should not be 0, if it is then it is an error in generating histograms
 				if (card == 0)
+					// TODO: update the cardinality
 					tmp[i++] = node.getCard();
 				else
-					tmp[i++] = node.getCard()/card; 
+				{
+					tmp[i++] = node.getCard()/card;
+					/*int output = (int)(Math.random() * card);
+					tmp[i++] = output / card;*/
+				}
+
 			}
 		}
 		if(i==0)
@@ -231,11 +240,11 @@ public class Plan implements Serializable {
 		}
 		return -1;
 	}
-	public void storePlan(Statement stmt,int qtid, String schema)throws SQLException
+	public void storePlan(Statement stmt,int qtid, String schema, Database database)throws SQLException
 	{
 		ListIterator it = nodes.listIterator();
 		while(it.hasNext())
-				((Node)it.next()).storeNode(stmt, qtid, planno, schema);
+				((Node)it.next()).storeNode(stmt, qtid, planno, schema, database);
 	}
 
 	/*

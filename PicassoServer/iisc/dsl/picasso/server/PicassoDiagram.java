@@ -56,6 +56,7 @@ import iisc.dsl.picasso.server.db.Database;
 import iisc.dsl.picasso.server.db.Histogram;
 import iisc.dsl.picasso.server.db.mssql.MSSQLDatabase;
 import iisc.dsl.picasso.server.db.postgres.PostgresDatabase;
+import iisc.dsl.picasso.server.db.presto.PrestoDatabase;
 import iisc.dsl.picasso.server.db.sybase.SybaseDatabase;
 import iisc.dsl.picasso.server.network.ServerMessageUtil;
 import iisc.dsl.picasso.server.plan.Plan;
@@ -1227,22 +1228,44 @@ public class PicassoDiagram {
 	{
         int SID=0,tmp;
 		try{
-			PreparedStatement stmt = database.prepareStatement("insert into PicassoPlanStore values("+qtid+",?,?,?,?,0.0,0.0)");
+
 			int i=0;
 			while(i<data.length)
 			{
 				for(int j=0;j<Math.min(data.length,PicassoConstants.SAVE_BATCH_SIZE);j++) 
 				{
-					stmt.setInt(1,i);
-					stmt.setInt(2,data[i].getPlanNumber());
-					stmt.setDouble(3,data[i].getCost());
-					stmt.setDouble(4,data[i].getCard());
-					stmt.addBatch();
+
+
+					if (database instanceof PrestoDatabase) {
+//						stmt = database.prepareStatement("insert into PicassoPlanStore values(?,?,?,?,0.0,0.0,"+qtid+")");
+//						stmt.close();
+						Statement stmt = database.createStatement();
+						String str =
+								"insert into PicassoPlanStore values(" + i + "," + data[i].getPlanNumber() + ","
+										+ data[i].getCost() + ","+ data[i].getCard() +",0.0,0.0," + qtid + ")";
+						stmt.executeUpdate(str);
+						stmt.close();
+					} else {
+						PreparedStatement stmt;
+						stmt = database.prepareStatement("insert into PicassoPlanStore values("+qtid+",?,?,?,?,0.0,0.0)");
+						stmt.setInt(1,i);
+						stmt.setInt(2,data[i].getPlanNumber());
+						stmt.setDouble(3,data[i].getCost());
+						stmt.setDouble(4,data[i].getCard());
+						try {
+							stmt.execute();
+							stmt.close();
+							//stmt.clearParameters();
+						} catch (Exception ex) {
+							throw ex;
+						}
+					}
 					i++;
 					if(i>=data.length) break;
 				}
-				stmt.executeBatch();
-				stmt.clearBatch();
+//				stmt.executeBatch();
+//				stmt.clearBatch();
+				System.out.println("Finished one more batch");
 			}
 			ServerMessageUtil.sendStatusMessage(sock, reader, writer, 50,"Saving Picasso Diagram: "+50+"% completed");
             		clientPacket.setProgress(50);
@@ -1251,6 +1274,7 @@ public class PicassoDiagram {
             // of commented code.
             		
 			/*PreparedStatement stmt2 = database.prepareStatement("insert into "+database.getSchema()+".PicassoSelectivityMap values("+qtid+",?,?,?)");
+			//TODO: handle above for presto, instance of check and qtid insert at end.
 			i=0;
 			while(i<data.length)
 			{
@@ -1291,7 +1315,7 @@ public class PicassoDiagram {
 			Statement stmt = database.createStatement();
 			ListIterator it = plans.listIterator();
 			while(it.hasNext())
-				((Plan)it.next()).storePlan(stmt,qtid,database.getSchema());
+				((Plan)it.next()).storePlan(stmt,qtid,database.getSchema(), database);
 			stmt.close();
 		}
 		catch(SQLException e)
@@ -1329,10 +1353,9 @@ public class PicassoDiagram {
 	{
 		try
 		{
-			String str="INSERT INTO "+database.getSchema()+".PicassoSelectivityLog values ("+qtid+",?,?,?,?,?,0.0,?)";
-			PreparedStatement stmt= database.prepareStatement(str);
-			int coveredres = 0;
 
+			int coveredres = 0;
+			String str;
 			for(int i=0;i<dimension;i++)
 			{
 				for(int j=0;j<resolution[i];j++)
@@ -1340,17 +1363,46 @@ public class PicassoDiagram {
 					String constant = hist[i].getConstant(j);
 					if(constant.startsWith("'"))
 						constant = constant.substring(1,constant.length()-1);
-					stmt.setInt(1,i);
-					stmt.setInt(2,j);
-					stmt.setDouble(3,(100*hist[i].getPicSel(j)));
-					stmt.setDouble(4,(100*plansel[coveredres+j]));	
-					stmt.setDouble(5,(100*predsel[coveredres+j]));
-					stmt.setString(6,constant);
-					stmt.addBatch();
+					if (database instanceof PrestoDatabase) {
+						/*String s  = "cast(0.0 as double)";
+						Statement stmt = database.createStatement();
+						String str1 =
+								"INSERT INTO " + database.getSchema() + ".PicassoSelectivityLog values (" + i + ","
+										+ j + "," + (double)(100 * hist[i].getPicSel(j)) + "," + (double)(100 * plansel[coveredres + j])
+										+ "," + (double)(100 * predsel[coveredres + j]) + ",0.0," + constant + "," + qtid + ")";
+						stmt.executeUpdate(str1);
+						stmt.close();*/
+						str="INSERT INTO "+database.getSchema()+".PicassoSelectivityLog values (?,?,?,?,?,0.0,?,"+qtid+")";
+						PreparedStatement stmt= database.prepareStatement(str);
+
+						stmt.setInt(1,i);
+						stmt.setInt(2,j);
+						stmt.setDouble(3,(100*hist[i].getPicSel(j)));
+						stmt.setDouble(4,(100*plansel[coveredres+j]));
+						stmt.setDouble(5,(100*predsel[coveredres+j]));
+						stmt.setString(6,constant);
+						stmt.execute();
+						stmt.close();
+						//						stmt.clearParameters();
+					} else {
+						str="INSERT INTO "+database.getSchema()+".PicassoSelectivityLog values ("+qtid+",?,?,?,?,?,0.0,?)";
+						PreparedStatement stmt= database.prepareStatement(str);
+
+						stmt.setInt(1,i);
+						stmt.setInt(2,j);
+						stmt.setDouble(3,(100*hist[i].getPicSel(j)));
+						stmt.setDouble(4,(100*plansel[coveredres+j]));
+						stmt.setDouble(5,(100*predsel[coveredres+j]));
+						stmt.setString(6,constant);
+						stmt.execute();
+						stmt.close();
+						//						stmt.clearParameters();
+					}
+
 				}
 				coveredres += resolution[i];
 			}
-			stmt.executeBatch();
+
 		}
 		catch(SQLException e)
 		{   

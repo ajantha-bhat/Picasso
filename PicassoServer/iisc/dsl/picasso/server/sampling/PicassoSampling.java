@@ -21,6 +21,7 @@ import iisc.dsl.picasso.server.db.Histogram;
 import iisc.dsl.picasso.server.db.mssql.MSSQLDatabase;
 import iisc.dsl.picasso.server.db.oracle.OracleDatabase;
 import iisc.dsl.picasso.server.db.postgres.PostgresDatabase;
+import iisc.dsl.picasso.server.db.presto.PrestoDatabase;
 import iisc.dsl.picasso.server.db.sybase.SybaseDatabase;
 import iisc.dsl.picasso.server.network.ServerMessageUtil;
 import iisc.dsl.picasso.server.plan.Plan;
@@ -333,11 +334,13 @@ public abstract class PicassoSampling extends PicassoDiagram{
 				identityError = 101;				
 			}*/
 			double sSize = (sampleSize*100.0)/(double)totalSize; 
-			String temp = "insert into "+database.getSettings().getSchema()+".PicassoApproxMap ("+attribList+
-			") values ("+qtid+", "/*+sid+", "*/+sSize+", "+SamplingMode+", "+errorPercent_L+", "+errorPercent_I+FPCval+")";
-			//System.out.println(temp);
-			stmt.executeUpdate("insert into "+database.getSettings().getSchema()+".PicassoApproxMap ("+attribList+
-					") values ("+qtid+", "/*+sid+", "*/+sSize+", "+SamplingMode+", "+errorPercent_L+", "+errorPercent_I+FPCval+")");
+			if (database instanceof PrestoDatabase) {
+				stmt.executeUpdate("insert into "+database.getSettings().getSchema()+".PicassoApproxMap ("+attribList+
+						") values ( "/*+sid+", "*/+sSize+", "+SamplingMode+", "+errorPercent_L+", "+errorPercent_I+FPCval+", "+qtid+")");
+			} else {
+				stmt.executeUpdate("insert into "+database.getSettings().getSchema()+".PicassoApproxMap ("+attribList+
+						") values ("+qtid+", "/*+sid+", "*/+sSize+", "+SamplingMode+", "+errorPercent_L+", "+errorPercent_I+FPCval+")");
+			}
 			stmt.close();
 		}catch(SQLException e){
 			e.printStackTrace();

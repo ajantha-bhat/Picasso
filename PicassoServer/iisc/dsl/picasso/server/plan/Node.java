@@ -30,8 +30,12 @@
 
 package iisc.dsl.picasso.server.plan;
 
+import java.text.DecimalFormat;
 import java.util.Vector;
 import java.util.ListIterator;
+
+import iisc.dsl.picasso.server.db.Database;
+import iisc.dsl.picasso.server.db.presto.PrestoDatabase;
 import iisc.dsl.picasso.server.network.ServerMessageUtil;
 import iisc.dsl.picasso.common.PicassoConstants;
 import iisc.dsl.picasso.common.ds.TreeNode;
@@ -162,15 +166,30 @@ public class Node {
 		return str.replaceAll("'","''");
 	}
 	
-	void storeNode(Statement stmt,int qtid,int planno, String schema) throws SQLException
+	void storeNode(Statement stmt,int qtid,int planno, String schema, Database database) throws SQLException
 	{
-            	stmt.executeUpdate("INSERT INTO "+schema+".PicassoPlanTree values("+qtid+","+planno+","+id+","+parentId+",'"+name+"',"+cost+
-				","+card+")");
+		if (database instanceof PrestoDatabase) {
+			DecimalFormat df = new DecimalFormat("#0.00000");
+			df.setMaximumFractionDigits(4);
+			String cardinality = df.format(card);
+			stmt.executeUpdate(
+					"INSERT INTO " + schema + "." + "PicassoPlanTree values(" + planno + "," + id
+							+ "," + parentId + ",'" + name + "'," + cost + "," + cardinality + "," + qtid + ")");
+		} else {
+			stmt.executeUpdate(
+					"INSERT INTO " + schema + "." + "PicassoPlanTree values(" + qtid + "," + planno + "," + id
+							+ "," + parentId + ",'" + name + "'," + cost + "," + card + ")");
+		}
 		ListIterator itt = argType.listIterator();
 		ListIterator itv = argValue.listIterator();
 		while(itt.hasNext() && itv.hasNext()){
-			stmt.executeUpdate("INSERT INTO "+schema+".PicassoPlanTreeArgs values("+qtid+","+planno+","+id+",'"+
-			(String)itt.next()+"','"+escapeQuotes((String)itv.next())+"')");
+			if (database instanceof PrestoDatabase) {
+				stmt.executeUpdate("INSERT INTO "+schema+".PicassoPlanTreeArgs values("+planno+","+id+",'"+
+						(String)itt.next()+"','"+escapeQuotes((String)itv.next())+"', "+qtid+")");
+			} else {
+				stmt.executeUpdate("INSERT INTO "+schema+".PicassoPlanTreeArgs values("+qtid+","+planno+","+id+",'"+
+						(String)itt.next()+"','"+escapeQuotes((String)itv.next())+"')");
+			}
 		}
 	}
 	public boolean isArgTypePresent(String arg)

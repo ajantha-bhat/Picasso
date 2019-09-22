@@ -36,6 +36,7 @@ import iisc.dsl.picasso.server.PicassoException;
 import iisc.dsl.picasso.server.db.Histogram;
 import iisc.dsl.picasso.server.db.Database;
 import iisc.dsl.picasso.server.db.mssql.MSSQLDatabase;
+import iisc.dsl.picasso.server.db.presto.PrestoDatabase;
 import iisc.dsl.picasso.server.network.ServerMessageUtil;
 
 public class Query {
@@ -60,6 +61,12 @@ public class Query {
 		attributes = new String[dimension];
 		PicassoParser parser = new PicassoParser();
 		parser.parse(db,qTemplate,dimension,schemas,relations,aliases,attributes);
+		if (db instanceof PrestoDatabase) {
+			// TODO: from above method other database is selected than the current db, need to find and fix that bug. currently hardcode only one db
+			for (int i = 0; i < dimension; i++) {
+				schemas[i] = db.getSchema();
+			}
+		}
 		if(dimension>PicassoConstants.MAX_DIMS)
 			throw new PicassoException("Maximum number of allowed dimensions is 4");
 		for(int i=0;i<dimension;i++){

@@ -39,6 +39,7 @@ import iisc.dsl.picasso.server.db.db2.DB2Database;
 import iisc.dsl.picasso.server.db.mssql.MSSQLDatabase;
 import iisc.dsl.picasso.server.db.oracle.OracleDatabase;
 import iisc.dsl.picasso.server.db.postgres.PostgresDatabase;
+import iisc.dsl.picasso.server.db.presto.PrestoDatabase;
 import iisc.dsl.picasso.server.db.sybase.SybaseDatabase;
 import iisc.dsl.picasso.server.db.informix.InformixDatabase;
 import iisc.dsl.picasso.server.db.mysql.MysqlDatabase;
@@ -52,7 +53,6 @@ import java.sql.Statement;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Vector;
-
 /*
  * Instantiating a Database Object is an expensive operation since we check for the presence
  * of picasso related tables by running a select query on those tables ( Can we do better? )
@@ -204,19 +204,33 @@ public abstract class Database {
 				}
 				if(!flag)
 					tempres = qp.getResolution(0);
-				
-				stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, QTNAME, " +
-					"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION) values ("+qtid+", '"+
-					escapeQuotes(qp.getQueryTemplate())+"','"+qp.getQueryName()+"',"+tempres+","+qp.getDimension()+
-					",'"+PicassoConstants.COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
-					"',"+qp.getGenTime()+", "+qp.getGenDuration()+")");
+				if (this instanceof PrestoDatabase) {
+					stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, " +
+							"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION, QTNAME) values ("+qtid+", '"+
+							escapeQuotes(qp.getQueryTemplate())+"',"+tempres+","+qp.getDimension()+
+							",'"+PicassoConstants.COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
+							"',"+qp.getGenTime()+", "+qp.getGenDuration()+", '"+qp.getQueryName()+"')");
+				} else {
+					stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, QTNAME, " +
+							"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION) values ("+qtid+", '"+
+							escapeQuotes(qp.getQueryTemplate())+"','"+qp.getQueryName()+"',"+tempres+","+qp.getDimension()+
+							",'"+PicassoConstants.COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
+							"',"+qp.getGenTime()+", "+qp.getGenDuration()+")");
+				}
+
 				/*
 				 * Added the following query to add the resolution values into the RangeResMap table -ma 
 				 */
 				if(tempres == -1)
-					for(int i = 0; i < qp.getDimension(); i++)
-						stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoRangeResMap (QTID, DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT) " +
-							"values ("+qtid+","+i+","+qp.getResolution(i)+","+qp.getStartPoint(i)+","+qp.getEndPoint(i)+")");
+					if (this instanceof PrestoDatabase) {
+						for(int i = 0; i < qp.getDimension(); i++)
+							stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoRangeResMap (DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT, QTID) " +
+									"values ("+i+","+qp.getResolution(i)+","+qp.getStartPoint(i)+","+qp.getEndPoint(i)+","+qtid+")");
+					} else {
+						for(int i = 0; i < qp.getDimension(); i++)
+							stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoRangeResMap (QTID, DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT) " +
+									"values ("+qtid+","+i+","+qp.getResolution(i)+","+qp.getStartPoint(i)+","+qp.getEndPoint(i)+")");
+					}
 			} // end not instance of Informix
 			else // if Informix
 			{
@@ -236,19 +250,36 @@ public abstract class Database {
 				}
 				if(!flag)
 					tempres = qp.getResolution(0);
-				
-				stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, QTNAME, " +
-						"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION) values ("+qtid+", '" +
-						escapeQuotes(xyz)+"','"+qp.getQueryName()+"',"+tempres+","+qp.getDimension()+
-						",'"+PicassoConstants.COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
-						"',"+qp.getGenTime()+", "+qp.getGenDuration()+")");
+				if (this instanceof PrestoDatabase) {
+					stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, " +
+							"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION, QTNAME) values ("+qtid+", '" +
+							escapeQuotes(xyz)+"',"+tempres+","+qp.getDimension()+
+							",'"+PicassoConstants.COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
+							"',"+qp.getGenTime()+", "+qp.getGenDuration()+",'"+qp.getQueryName()+"')");
+				} else {
+					stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, QTNAME, " +
+							"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION) values ("+qtid+", '" +
+							escapeQuotes(xyz)+"','"+qp.getQueryName()+"',"+tempres+","+qp.getDimension()+
+							",'"+PicassoConstants.COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
+							"',"+qp.getGenTime()+", "+qp.getGenDuration()+")");
+				}
 				/*
 				 * Added the following query to add the resolution values into the RangeResMap table -ma 
 				 */
 				if(tempres == -1)
-					for(int i = 0; i < qp.getDimension(); i++)
-						stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoRangeResMap (QTID, DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT) " +
-						"values ("+qtid+","+i+","+qp.getResolution(i)+","+qp.getStartPoint(i)+","+qp.getEndPoint(i)+")");
+					if (this instanceof PrestoDatabase) {
+						for (int i = 0; i < qp.getDimension(); i++)
+							stmt.executeUpdate("insert into " + settings.getSchema()
+									+ ".PicassoRangeResMap (DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT, QTID) "
+									+ "values (" + i + "," + qp.getResolution(i) + "," + qp.getStartPoint(i)
+									+ "," + qp.getEndPoint(i) + ", " + qtid + ")");
+					} else {
+						for (int i = 0; i < qp.getDimension(); i++)
+							stmt.executeUpdate("insert into " + settings.getSchema()
+									+ ".PicassoRangeResMap (QTID, DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT) "
+									+ "values (" + qtid + "," + i + "," + qp.getResolution(i) + "," + qp.getStartPoint(i)
+									+ "," + qp.getEndPoint(i) + ")");
+					}
 				// end change
 			}
 			stmt.close();
@@ -304,18 +335,37 @@ public abstract class Database {
 					escapeQuotes(qp.getQueryTemplate())+"','"+qp.getQueryName()+"',"+tempres+","+qp.getDimension()+
 					",'"+PicassoConstants.APPROX_COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
 					"',"+qp.getGenTime()+", "+qp.getGenDuration()+")");*/
-				stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, QTNAME, " +
-					"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION) values ("+qtid+", '"+
-					escapeQuotes(qp.getQueryTemplate())+"','"+qp.getQueryName()+"',"+tempres+","+qp.getDimension()+
-					",'"+PicassoConstants.APPROX_COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
-					"',"+qp.getGenTime()+", "+qp.getGenDuration()+")");
+				if (this instanceof PrestoDatabase) {
+					stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, " +
+							"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION, QTNAME) values ("+qtid+", '"+
+							escapeQuotes(qp.getQueryTemplate())+"',"+tempres+","+qp.getDimension()+
+							",'"+PicassoConstants.APPROX_COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
+							"',"+qp.getGenTime()+", "+qp.getGenDuration()+", '"+qp.getQueryName()+"')");
+				} else {
+					stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, QTNAME, " +
+							"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION) values ("+qtid+", '"+
+							escapeQuotes(qp.getQueryTemplate())+"','"+qp.getQueryName()+"',"+tempres+","+qp.getDimension()+
+							",'"+PicassoConstants.APPROX_COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
+							"',"+qp.getGenTime()+", "+qp.getGenDuration()+")");
+				}
+
 				/*
 				 * Added the following query to add the resolution values into the RangeResMap table -ma 
 				 */
 				if(tempres == -1)
-					for(int i = 0; i < qp.getDimension(); i++)
-						stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoRangeResMap (QTID, DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT) " +
-							"values ("+qtid+","+i+","+qp.getResolution(i)+","+qp.getStartPoint(i)+","+qp.getEndPoint(i)+")");
+					if (this instanceof PrestoDatabase) {
+						for (int i = 0; i < qp.getDimension(); i++)
+							stmt.executeUpdate("insert into " + settings.getSchema()
+									+ ".PicassoRangeResMap (DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT, QTID) "
+									+ "values (" + i + "," + qp.getResolution(i) + "," + qp.getStartPoint(i)
+									+ "," + qp.getEndPoint(i) + ", " + qtid + ")");
+					} else {
+						for (int i = 0; i < qp.getDimension(); i++)
+							stmt.executeUpdate("insert into " + settings.getSchema()
+									+ ".PicassoRangeResMap (QTID, DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT) "
+									+ "values (" + qtid + "," + i + "," + qp.getResolution(i) + "," + qp.getStartPoint(i)
+									+ "," + qp.getEndPoint(i) + ")");
+					}
 			} // end not instance of Informix
 			else // if Informix
 			{
@@ -335,19 +385,37 @@ public abstract class Database {
 				}
 				if(!flag)
 					tempres = qp.getResolution(0);
-				
-				stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, QTNAME, " +
-						"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION) values ("+qtid+", '" +
-						escapeQuotes(xyz)+"','"+qp.getQueryName()+"',"+tempres+","+qp.getDimension()+
-						",'"+PicassoConstants.APPROX_COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
-						"',"+qp.getGenTime()+", "+qp.getGenDuration()+")");
+				if (this instanceof PrestoDatabase) {
+					stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, " +
+							"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION, QTNAME) values ("+qtid+", '" +
+							escapeQuotes(xyz)+"',"+tempres+","+qp.getDimension()+
+							",'"+PicassoConstants.APPROX_COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
+							"',"+qp.getGenTime()+", "+qp.getGenDuration()+", '"+qp.getQueryName()+"')");
+				} else {
+					stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoQTIDMap (QTID, QTEMPLATE, QTNAME, " +
+							"RESOLUTION, DIMENSION, EXECTYPE, DISTRIBUTION, OPTLEVEL, PLANDIFFLEVEL, GENTIME, GENDURATION) values ("+qtid+", '" +
+							escapeQuotes(xyz)+"','"+qp.getQueryName()+"',"+tempres+","+qp.getDimension()+
+							",'"+PicassoConstants.APPROX_COMPILETIME_DIAGRAM+"','"+qp.getDistribution()+"','"+qp.getOptLevel()+"','"+qp.getPlanDiffLevel()+
+							"',"+qp.getGenTime()+", "+qp.getGenDuration()+")");
+				}
+
 				/*
 				 * Added the following query to add the resolution values into the RangeResMap table -ma 
 				 */
 				if(tempres == -1)
-					for(int i = 0; i < qp.getDimension(); i++)
-						stmt.executeUpdate("insert into "+settings.getSchema()+".PicassoRangeResMap (QTID, DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT) " +
-						"values ("+qtid+","+i+","+qp.getResolution(i)+","+qp.getStartPoint(i)+","+qp.getEndPoint(i)+")");
+					if (this instanceof PrestoDatabase) {
+						for (int i = 0; i < qp.getDimension(); i++)
+							stmt.executeUpdate("insert into " + settings.getSchema()
+									+ ".PicassoRangeResMap (DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT, QTID) "
+									+ "values (" + i + "," + qp.getResolution(i) + "," + qp.getStartPoint(i)
+									+ "," + qp.getEndPoint(i) + ", " + qtid + ")");
+					} else {
+						for (int i = 0; i < qp.getDimension(); i++)
+							stmt.executeUpdate("insert into " + settings.getSchema()
+									+ ".PicassoRangeResMap (QTID, DIMNUM, RESOLUTION, STARTPOINT, ENDPOINT) "
+									+ "values (" + qtid + "," + i + "," + qp.getResolution(i) + "," + qp.getStartPoint(i)
+									+ "," + qp.getEndPoint(i) + ")");
+					}
 				// end change
 			}
 			stmt.close();
@@ -553,12 +621,13 @@ public abstract class Database {
 			if(qtid>=0){
 				Statement stmt = createStatement();
 				stmt.executeUpdate("delete from "+getSchema()+".PicassoSelectivityLog where QTID="+qtid);
-				stmt.executeUpdate("delete from "+getSchema()+".PicassoSelectivityMap where QTID="+qtid);
+				// insert is anyways commented
+				// stmt.executeUpdate("delete from "+getSchema()+".PicassoSelectivityMap where QTID="+qtid);
 				stmt.executeUpdate("delete from "+getSchema()+".PicassoPlanTreeArgs where QTID="+qtid);
 				stmt.executeUpdate("delete from "+getSchema()+".PicassoPlanTree where QTID="+qtid);
 				stmt.executeUpdate("delete from "+getSchema()+".PicassoPlanStore where QTID="+qtid);
 				stmt.executeUpdate("delete from "+getSchema()+".PicassoRangeResMap where QTID="+qtid); //-ma
-				if(!(this instanceof MysqlDatabase))
+				if(!(this instanceof MysqlDatabase) && !(this instanceof PrestoDatabase))
 					stmt.executeUpdate("delete from "+getSchema()+".PicassoXMLPlan where QTID="+qtid); //-ma
 				stmt.executeUpdate("delete from "+getSchema()+".PicassoApproxMap where QTID="+qtid); //-ma
 				stmt.executeUpdate("delete from "+getSchema()+".PicassoQTIDMap where QTNAME='"+queryName+"'");
@@ -658,7 +727,8 @@ public abstract class Database {
 				ServerMessageUtil.SPrintToConsole("Creating Picasso Tables");
 			}
 
-			if(this instanceof MysqlDatabase && checkTable(getSchema()+".picassohistogram")==false)
+      if ((this instanceof MysqlDatabase || this instanceof PrestoDatabase)
+          && checkTable(getSchema() + ".picassohistogram") == false)
 					createPicassoHistogram(stmt);
 			if(this instanceof MSSQLDatabase && checkTable("PicassoXMLPlan")==false)
 				createXMLPlan(stmt);
@@ -708,6 +778,8 @@ public abstract class Database {
 			db = new InformixDatabase(settings);
 		else if(vendor.equals(DBConstants.MYSQL))
 			db = new MysqlDatabase(settings);
+		else if(vendor.equals(DBConstants.PRESTO))
+			db = new PrestoDatabase(settings);
 		return db;
 	}
 }

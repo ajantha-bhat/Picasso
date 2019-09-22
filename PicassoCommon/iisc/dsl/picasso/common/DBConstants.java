@@ -36,6 +36,7 @@ import iisc.dsl.picasso.common.db.OracleInfo;
 import iisc.dsl.picasso.common.db.MSSQLInfo;
 import iisc.dsl.picasso.common.db.MysqlInfo;
 import iisc.dsl.picasso.common.db.PostgresInfo;
+import iisc.dsl.picasso.common.db.PrestoInfo;
 import iisc.dsl.picasso.common.db.SybaseInfo;
 import iisc.dsl.picasso.common.db.InformixInfo;
 
@@ -48,15 +49,17 @@ public class DBConstants {
 	public static final String MSSQL = "SQL SERVER";
 	public static final String MYSQL = "MYSQL";
 	public static final String INFORMIX = "INFORMIX";
+	public static final String PRESTO = "PRESTO";
 	
 	public static final DBInfo databases[] = {
 			new DB2Info(),
 			new OracleInfo(),
 			new PostgresInfo(),
 			new MSSQLInfo(),
-			new SybaseInfo()
+			new SybaseInfo(),
 			//, new InformixInfo()
 	// Please uncomment the following line to enable Mysql
-			, new MysqlInfo()
+			new MysqlInfo(),
+			new PrestoInfo()
 	};
 }
